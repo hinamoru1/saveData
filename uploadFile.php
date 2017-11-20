@@ -10,7 +10,8 @@ $user = "root";
 $password = ""; 
 $host = "localhost"; 
 $dbase = "saveData"; 
-$table = "test2"; 
+$tableB = "bigFile";
+$tableS = "smallFile";
 
 //getting the current time to insert in database
 date_default_timezone_set('Asia/Seoul');
@@ -53,6 +54,7 @@ for($i=0; $i<$total; $i++) {
 	$name= basename( $_FILES["fileToUpload"]["name"][$i]);
 	echo " --- Working on : ".$name;?><br><?php
 	$uploadOk = 1;
+	$updateDatabaseOk = 1;
 	$imageFileType = pathinfo($target_file,PATHINFO_EXTENSION);
 	
 	//if umpty description
@@ -75,6 +77,12 @@ for($i=0; $i<$total; $i++) {
 	if ($_FILES["fileToUpload"]["size"][$i] < 0.5*1024*1024) {
 		$isSmallFile = 0;
 	}
+	
+	// set $table value for the query
+	$table = $tableB;
+	if ($isSmallFile == 0){
+		$table = $tableS;
+	}
 
 	// Check file size if >2MB not going to upload
 	if ($_FILES["fileToUpload"]["size"][$i] > 2*1024*1024) {
@@ -88,9 +96,11 @@ for($i=0; $i<$total; $i++) {
 		?><b style="color:red;"> Warning </b><?php
 		echo "file already exists.";?><br><?php
 		$uploadOk = 0;
+		$updateDatabaseOk  = 0;
 
 		// if file is already on the server that mean we have to increment its hot value
 		//retrive the data
+
 		$query= "SELECT filename, isHot, ID FROM $table ORDER BY ID asc";
 
 		if ($result = mysqli_query($link, $query)) {
@@ -114,11 +124,12 @@ for($i=0; $i<$total; $i++) {
 					}
 					
 					// --- update new value in database ---
-					$sql = "UPDATE $table set isHot='$topValue' WHERE ID='$ID'";
+					$sql = "UPDATE $table set isHot='$topValue',lastUpdatetime='$currentTime' WHERE ID='$ID'";
 					if(mysqli_query($link, $sql)){
 					} else{
 						echo "ERROR: Could not execute $sql. " . mysqli_error($link);?><br><?php
 					}
+					break;
 				}
 			}
 			/* free result */
@@ -147,13 +158,17 @@ for($i=0; $i<$total; $i++) {
 	}
 	
 	// --- inserting information in database ---
-	$sql = "INSERT INTO $table (description, filename, isSmallFile, isHot) VALUES ('$description', '$name', '$isSmallFile', '$topValue')";
-//	$sql = "INSERT INTO $table (description, filename) VALUES ('$description', '$name')";
-	if(mysqli_query($link, $sql)){
+	if ($updateDatabaseOk == 0){
+		echo "increment hotfile value";
+	}else{
+		$sql = "INSERT INTO $table (description, filename,  isHot, creationTime, lastUpdatetime) VALUES ('$description', '$name', '$topValue', '$currentTime', '$currentTime')";
+		//	$sql = "INSERT INTO $table (description, filename) VALUES ('$description', '$name')";
+		if(mysqli_query($link, $sql)){
 		?><b style="color:green;"> success </b><?php
 		echo "Records inserted successfully in database.";?><br><?php
-	} else{
+		} else{
 		echo "ERROR: Could not able to execute $sql. " . mysqli_error($link);?><br><?php
+		}
 	}
 }
 mysqli_close($link);
@@ -183,7 +198,8 @@ mysqli_close($link);
 	$password = ""; 
 	$host = "localhost"; 
 	$dbase = "saveData"; 
-	$table = "test2";
+	$tableB = "bigFile";
+	$tableS = "smallFile";
 	// Connection to DBase 
 	$link = mysqli_connect($host, $user, $password, $dbase);
 	
@@ -192,7 +208,7 @@ mysqli_close($link);
 	}
 	
 
-	$query= "SELECT description, filename, isSmallFile, isHot FROM $table ORDER BY ID desc";
+	$query= "SELECT description, filename, isSmallFile, isHot FROM $tableB ORDER BY ID desc";
 //	$query= "SELECT description, filename FROM $table ORDER BY ID desc";
 
 	if ($result = mysqli_query($link, $query)) {
