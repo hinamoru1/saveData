@@ -16,7 +16,7 @@ $tableS = "smallFile";
 //getting the current time to insert in database
 date_default_timezone_set('Asia/Seoul');
 $currentTime = date('Y-m-d h:i:s');
-echo $currentTime;
+echo "time of last run : ".$currentTime;
 
 $link = mysqli_connect($host, $user, $password, $dbase);
 
@@ -85,7 +85,7 @@ for($i=0; $i<$total; $i++) {
 	}
 
 	// Check file size if >2MB not going to upload
-	if ($_FILES["fileToUpload"]["size"][$i] > 2*1024*1024) {
+	if ($_FILES["fileToUpload"]["size"][$i] > 10*1024*1024) {
 		?><b style="color:red;"> Warning </b><?php
 		echo "your file is too large.";?><br><?php
 		$uploadOk = 0;
@@ -124,7 +124,7 @@ for($i=0; $i<$total; $i++) {
 					}
 					
 					// --- update new value in database ---
-					$sql = "UPDATE $table set isHot='$topValue',lastUpdatetime='$currentTime' WHERE ID='$ID'";
+					$sql = "UPDATE $table set isHot='$topValue',lastUpdatetime='$currentTime',description='$description' WHERE ID='$ID'";
 					if(mysqli_query($link, $sql)){
 					} else{
 						echo "ERROR: Could not execute $sql. " . mysqli_error($link);?><br><?php
@@ -208,10 +208,11 @@ mysqli_close($link);
 	}
 	
 
-	$query= "SELECT description, filename, isSmallFile, isHot FROM $tableB ORDER BY ID desc";
+	$queryB= "SELECT description, filename, isHot, creationTime, lastUpdateTime FROM $tableB ORDER BY ID desc";
+	$queryS= "SELECT description, filename, isHot, creationTime, lastUpdateTime FROM $tableS ORDER BY ID desc";
 //	$query= "SELECT description, filename FROM $table ORDER BY ID desc";
 
-	if ($result = mysqli_query($link, $query)) {
+	if ($resultB = mysqli_query($link, $queryB) and $resultS = mysqli_query($link, $queryS)) {
 		$resultNumber=0;
 		$smallFilesNumber=0;
 		$hotFilesNumber=0;
@@ -224,32 +225,31 @@ mysqli_close($link);
 							<th>file name</th>
 							<th>size</th>
 							<th>type</th>
+							<th>creation date</th>
+							<th>last update</th>
 					  </tr>
 				</thead>
 			<tbody>
 		<?php
 		/* get an associatif table*/
-		while ($row = mysqli_fetch_row($result)) {
+		while ($row = mysqli_fetch_row($resultB)) {
 			//encrement the compteur
 			++$resultNumber;
 			
 			$files_field= $row['1'];
 			$files_show= "Uploads/$files_field";
 			$descriptionvalue= $row['0'];
-			$isSmallFileString = "BIG";
-			$isSmallFile= $row['2'];
-			if($isSmallFile == 0){
-				$isSmallFileString= "small";
-				++$smallFilesNumber;
-			}
-			$isHot= $row['3'];
+			$isHot= $row['2'];
 			$isHotString= "cold";
 			if($isHot > 4){
 				$isHotString= "HOT";
 				++$hotFilesNumber;
 			}
+			$creationTime = $row['3'];
+			$lastUpdateTime = $row['4'];
 
 			print "<tr>\n"; 
+			
 			print "\t<td>\n"; 
 			echo "$descriptionvalue";
 			print "</td>\n";
@@ -257,26 +257,84 @@ mysqli_close($link);
 			echo "<a href='$files_show'>$files_field</a>";
 			print "</td>\n";
 			print "\t<td>\n"; 
-			echo "$isSmallFileString";
+			echo "BIG";
 			print "</td>\n";
 			print "\t<td>\n"; 
 			echo "$isHotString";
 			print "</td>\n";
+			print "\t<td>\n"; 
+			echo "$creationTime";
+			print "</td>\n";
+			print "\t<td>\n";
+			//if creation time and lastUpdateTime are the same dont display last update time
+			if($creationTime == $lastUpdateTime){
+				$lastUpdateTime = "";
+			}
+			echo "$lastUpdateTime";
+			print "</td>\n";
+			
 			print "</tr>\n";			
 
 		}
+		while ($row = mysqli_fetch_row($resultS)) {
+			//encrement the compteur
+			++$resultNumber;
+			++$smallFilesNumber;
+			
+			$files_field= $row['1'];
+			$files_show= "Uploads/$files_field";
+			$descriptionvalue= $row['0'];
+			$isHot= $row['2'];
+			$isHotString= "cold";
+			if($isHot > 4){
+				$isHotString= "HOT";
+				++$hotFilesNumber;
+			}
+			$creationTime = $row['3'];
+			$lastUpdateTime = $row['4'];
+
+			print "<tr>\n"; 
+			
+			print "\t<td>\n"; 
+			echo "$descriptionvalue";
+			print "</td>\n";
+			print "\t<td>\n"; 
+			echo "<a href='$files_show'>$files_field</a>";
+			print "</td>\n";
+			print "\t<td>\n"; 
+			echo "small";
+			print "</td>\n";
+			print "\t<td>\n"; 
+			echo "$isHotString";
+			print "</td>\n";
+			print "\t<td>\n"; 
+			echo "$creationTime";
+			print "</td>\n";
+			print "\t<td>\n";
+			//if creation time and lastUpdateTime are the same dont display last update time
+			if($creationTime == $lastUpdateTime){
+				$lastUpdateTime = "";
+			}
+			echo "$lastUpdateTime";
+			print "</td>\n";
+			
+			print "</tr>\n";			
+
+		}
+		
 		?>
 				</tbody>
 			</table>
 		</div>
-		
 		
 		<!-- end of the toogle part-->
 		</div>
     </div>
   </div>
 
-		
+	<?php 
+	// displaying a global information about the results
+	?>	
 		<div class="container table-responsive">
 			<table class="table table-striped">
 				<thead>
@@ -312,7 +370,8 @@ mysqli_close($link);
 		</div>
 		<?php
 		/* free result */
-		mysqli_free_result($result);
+		mysqli_free_result($resultS);
+		mysqli_free_result($resultB);
 	}
 
 	/* close connection */
